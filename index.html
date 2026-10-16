@@ -92,9 +92,26 @@ function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 function toolCard(name){
   const img=toolImages[name];
   const visual=img?`<img class="toolpic" src="${img}" alt="${esc(name)}" loading="lazy" onerror="this.outerHTML='<span class=&quot;fallback&quot;>${toolArt[name]||'🧰'}</span>'">`:`<span class="fallback">${toolArt[name]||'🧰'}</span>`;
-  return `<div class="tool" draggable="true" ondragstart="toolDragStart(event,${JSON.stringify(name).replace(/"/g,'&quot;')})" onclick="addTool(${JSON.stringify(name).replace(/"/g,'&quot;')})">${visual}<span>${esc(name)}</span><div style="margin-top:5px"><button type="button" class="btn secondary" style="font-size:10px;padding:4px 9px" onclick="event.stopPropagation();addTool(${JSON.stringify(name).replace(/"/g,'&quot;')})">+ Add</button></div></div>`;
+  // Use data attributes + delegated listeners instead of inline click handlers.
+  // This is more reliable for taps on iPhone Safari and avoids nested event-handler quirks.
+  return `<div class="tool" draggable="true" data-tool="${esc(name)}" role="button" tabindex="0" aria-label="Add ${esc(name)} to workbench">${visual}<span>${esc(name)}</span><div style="margin-top:5px"><button type="button" class="btn secondary tool-add" data-tool="${esc(name)}" style="font-size:10px;padding:4px 9px">+ Add</button></div></div>`;
 }
 function toolDragStart(event,name){event.dataTransfer.setData('text/plain',name);event.dataTransfer.effectAllowed='copy';}
+// Reliable click/tap handling for the visual tool tray (including iOS Safari).
+$('tools').addEventListener('click',function(event){
+  const addButton=event.target.closest('.tool-add');
+  if(addButton){event.preventDefault();event.stopPropagation();addTool(addButton.dataset.tool);return;}
+  const card=event.target.closest('.tool[data-tool]');
+  if(card){event.preventDefault();addTool(card.dataset.tool);}
+});
+$('tools').addEventListener('keydown',function(event){
+  const card=event.target.closest('.tool[data-tool]');
+  if(card && (event.key==='Enter' || event.key===' ')){event.preventDefault();addTool(card.dataset.tool);}
+});
+$('tools').addEventListener('dragstart',function(event){
+  const card=event.target.closest('.tool[data-tool]');
+  if(card){toolDragStart(event,card.dataset.tool);}
+});
 function benchDragOver(event){event.preventDefault();$('workbench').classList.add('dragover');}
 function benchDragLeave(event){$('workbench').classList.remove('dragover');}
 function benchDrop(event){event.preventDefault();$('workbench').classList.remove('dragover');const name=event.dataTransfer.getData('text/plain');if(name)addTool(name);}
